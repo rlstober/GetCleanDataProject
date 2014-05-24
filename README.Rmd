@@ -1,0 +1,140 @@
+Getting and Cleaning Data: Course Project
+========================================================
+
+Introduction
+--------------------------------------
+The purpose of this project is to demonstrate your ability to collect, work with, and clean a data set. The goal is to prepare tidy data that can be used for later analysis. You will be graded by your peers on a series of yes/no questions related to the project. You will be required to submit: 1) a tidy data set as described below, 2) a link to a Github repository with your script for performing the analysis, and 3) a code book that describes the variables, the data, and any transformations or work that you performed to clean up the data called CodeBook.md. You should also include a README.md in the repo with your scripts. This repo explains how all of the scripts work and how they are connected.  
+
+You should create one R script called run_analysis.R that does the following. 
+Merges the training and the test sets to create one data set.
+Extracts only the measurements on the mean and standard deviation for each measurement. 
+Uses descriptive activity names to name the activities in the data set
+Appropriately labels the data set with descriptive activity names. 
+Creates a second, independent tidy data set with the average of each variable for each activity and each subject. 
+### Data
+Citation 
+
+[1] Davide Anguita, Alessandro Ghio, Luca Oneto, Xavier Parra and Jorge L. Reyes-Ortiz. Human Activity Recognition on Smartphones using a Multiclass Hardware-Friendly Support Vector Machine. International Workshop of Ambient Assisted Living (IWAAL 2012). Vitoria-Gasteiz, Spain. Dec 2012
+
+One of the most exciting areas in all of data science right now is wearable computing - see for example this article . Companies like Fitbit, Nike, and Jawbone Up are racing to develop the most advanced algorithms to attract new users. The data linked to from the course website represent data collected from the accelerometers from the Samsung Galaxy S smartphone. A full description is available at the site where the data was obtained: 
+
+http://archive.ics.uci.edu/ml/datasets/Human+Activity+Recognition+Using+Smartphones 
+
+The data for the project can be obtained here: 
+
+https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip 
+
+### Data Input
+Files were loaded using the read.table command. The paramater stringsAsFactors was set to FALSE when loading the character based data for features and activities to facilotate later processing. The verbose ==True parameter is used for debugging purposes.
+
+
+```{r}
+## get training data        
+fileTrainX<-read.table("X_train.txt")
+fileTrainY<-read.table("y_train.txt")
+fileTrainS<-read.table("subject_train.txt")
+
+## get test data
+fileTestX<-read.table("X_test.txt")
+fileTestY<-read.table("y_test.txt")
+fileTestS<-read.table("subject_test.txt")
+
+##Get activities and features
+fileActivity<-read.table("activity_labels.txt", stringsAsFactors=FALSE)
+fileFeatures<-read.table("features.txt", stringsAsFactors=FALSE)
+```
+
+### Combining Datasets
+
+This section completes the 1st and 3rd functions of the project:
+1. Merges the training and the test sets to create one data set.
+3. Uses descriptive activity names to name the activities in the data set.
+
+The activity file is an additional column representing a coded activity that needs to be added to the test and training datasets.
+
+```{r}
+## merge activity codes and labels
+fileTrainActivity<-merge(fileActivity,fileTrainY)
+fileTestActivity<-merge(fileActivity,fileTestY)
+```
+
+This step adds the activity column to both the test and training datasets, using the cbind function. 
+
+```{r}
+## add activity to test and train data
+fileTestXY<-cbind(fileTestX,fileTestActivity)
+fileTrainXY<-cbind(fileTrainX,fileTrainActivity)
+```
+
+This step adds the subject column to both the test and training datasets, using the cbind function. 
+
+```{r}
+## add subject to test and train data
+fileTestXYS<-cbind(fileTestXY,fileTestS)
+fileTrainXYS<-cbind(fileTrainXY,fileTrainS)
+```
+
+This step combines the test and training datasets usinf rbind function.
+
+```{r}
+## ## merge test and train
+fileData<-rbind(fileTrainXYS,fileTestXYS)
+```
+
+
+### Transform Features and subset
+This section accomplishes the 4th and 2nd functions of the project:
+4. Appropriately labels the data set with descriptive activity names.
+2. Extracts only the measurements on the mean and standard deviation for each measurement. 
+
+The step adds lables for the new columns in the data set to the features.
+
+```{r}
+## add activiy code, activity label, and subject to features
+fileFeatures<-rbind(fileFeatures, c(nrow(fileFeatures)+1,"ActivityCode"))
+fileFeatures<-rbind(fileFeatures, c(nrow(fileFeatures)+1,"ActivityLabel"))
+fileFeatures<-rbind(fileFeatures, c(nrow(fileFeatures)+1,"SubjectLabel"))
+```
+
+This step sets the names of the columns equal to the feature names
+
+```{r}
+## set column names equal to 2nd column of the fileFeatures data frame
+colnames(fileData) <-fileFeatures[[2]]
+```
+
+This step subsets the data, takeing only those columns with the mean() and std() in their names
+
+```{r}
+##subset dataset for features with mean and stdev in name
+selectFeature<-(grepl("mean()",fileFeatures$V2))|(grepl("std()",fileFeatures$V2)|(grepl("Label",fileFeatures$V2)))
+fileData<-subset(fileData, select=selectFeature)
+
+```
+
+This step cleans up column names by removing the parenthesis.
+```{r}
+## remove parenthesis in colunnames
+fileDataCols<-colnames(fileData)
+##escape a metacharacter in a regular expression, you precede it with a backslash.
+##If your expression is in double quotes, then the backslash itself must be escaped by using double backslashes.
+fileDataCols<-gsub(pattern="\\(|\\)", x=fileDataCols, replacement="")
+## Assign cleaned up names to columns
+colnames(fileData) <-fileDataCols
+```
+
+### Create new dataset
+This section accomplishes the 5th function of the project.
+5. Creates a second, independent tidy data set with the average of each variable for each activity and each subject. 
+
+```{r}
+##For each combination of activity and subject in the data, calculate the mean of those entries for each variable.
+##This means that this data frame will have 180 rows (30 subjects * 6 activities)nb<-dcast(B,c(SubjectLabel,ActivityLabel),variable,mean)
+
+fileDataMelt<-melt(fileData, id=c("subjectCode", "activityCode"))
+fileDataCast<-dcast(fileDataMelt,activityCode+subjectCode~variable,mean)
+
+write.table(fileDataCast, "tidydata.txt", sep="\t")
+str(fileDataCast)
+```
+
