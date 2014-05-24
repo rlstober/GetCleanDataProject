@@ -139,7 +139,7 @@ The resulting dataset has a row for each combination of activity and subject in 
 
 
 ```{r}
-## laod library
+## load library
 library(reshape2)
 ##First melt or unpivot the dataset
 ## since we want to aggregate by subjectCode and activityCode they are the ids, default allother columns are variables
