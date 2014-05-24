@@ -195,7 +195,7 @@ There are 79 numeric factors. This is a subset of the original 561 varibales. Th
 summary(subset(fileDataMerge, select =3:81))
 ```
 
-Boxplots of the variables are below.
+Boxplots of the variables are below. (Visible only in html version)
 
 ```{r}
 par(mfrow=c(10,8), mar=c(1,1,1,1))

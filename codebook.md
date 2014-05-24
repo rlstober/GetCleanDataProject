@@ -683,7 +683,7 @@ summary(subset(fileDataMerge, select = 3:81))
 ```
 
 
-Boxplots of the variables are below.
+Boxplots of the variables are below. (Visible only in html version)
 
 
 ```r
