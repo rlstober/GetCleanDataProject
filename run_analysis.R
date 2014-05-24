@@ -38,7 +38,7 @@
         ## set column names
         colnames(fileData) <-fileFeatures[[2]]
         
-        ##subset dataset for features with mean and stdev in name
+        ##subset dataset for features with mean or stdev or code in name
         selectFeature<-(grepl("mean()",fileFeatures$V2))|(grepl("std()",fileFeatures$V2)|(grepl("Code",fileFeatures$V2)))
         fileData<-subset(fileData, select=selectFeature)
         
@@ -53,11 +53,18 @@
         
         ##For each combination of activity and subject in the data, calculate the mean of those entries for each variable.
         ##This means that this data frame will have 180 rows (30 subjects * 6 activities)nb<-dcast(B,c(SubjectLabel,ActivityLabel),variable,mean)
+        
+        ##First melt or unpivot the dataset
+        ## since we want to aggregate by subjectCode and activityCode they are the ids, default allother columns are variables
         fileDataMelt<-melt(fileData, id=c("subjectCode", "activityCode"))
+        
+        ## Now cast or pivot the columns and get the mean 
         fileDataCast<-dcast(fileDataMelt,activityCode+subjectCode~variable,mean)
-        fileDataMerge<-merge(fileDataCast, fileActivity, by="activityCode")
+        
+        ## mere or join the dataset to get activity labels
+        ## join by activity code which is common column to both datasets
+        fileDataMerge<-merge(fileDataCast, fileActivity, by="activityCode")## write data to tab delimited text file
         write.table(fileDataMerge, "tidydata.txt", sep="\t")
         
         ## print structure to screen
-        str(fileData)
-        
+        str(fileDataMerge)
