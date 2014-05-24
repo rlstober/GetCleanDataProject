@@ -6,11 +6,23 @@ Introduction
 The purpose of this project is to demonstrate your ability to collect, work with, and clean a data set. The goal is to prepare tidy data that can be used for later analysis. You will be graded by your peers on a series of yes/no questions related to the project. You will be required to submit: 1) a tidy data set as described below, 2) a link to a Github repository with your script for performing the analysis, and 3) a code book that describes the variables, the data, and any transformations or work that you performed to clean up the data called CodeBook.md. You should also include a README.md in the repo with your scripts. This repo explains how all of the scripts work and how they are connected.  
 
 You should create one R script called run_analysis.R that does the following. 
-Merges the training and the test sets to create one data set.
-Extracts only the measurements on the mean and standard deviation for each measurement. 
-Uses descriptive activity names to name the activities in the data set
-Appropriately labels the data set with descriptive activity names. 
-Creates a second, independent tidy data set with the average of each variable for each activity and each subject. 
+1. Merges the training and the test sets to create one data set.
+2. Extracts only the measurements on the mean and standard deviation for each measurement. 
+3. Uses descriptive activity names to name the activities in the data set
+4. Appropriately labels the data set with descriptive activity names. 
+5. Creates a second, independent tidy data set with the average of each variable for each activity and each subject. 
+
+### Files in the repository
+
+* README.md: The introductory read me file, that you are currently viewing.
+* README.Rmd: The knitter file that crerates README.md.
+
+* CodeBook.md: The codebook for the project.
+* CodeBook.Rmd: The knitter file that creates CodeBook.md.
+
+* run_analysis.R: The R script that accomplishes the analysis required.
+* tidydata.txt; The output dataset from run_analysis.R
+
 ### Data
 Citation 
 
@@ -22,39 +34,175 @@ http://archive.ics.uci.edu/ml/datasets/Human+Activity+Recognition+Using+Smartpho
 
 The data for the project can be obtained here: 
 
-https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip  
+https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip 
 
 ### Data Input
-Files were loaded using the read.table command. The paramater stringsAsFactors was set to FALSE when loading the character based data for features and activities to facilotate later processing. The verbose ==True parameter is used for debugging purposes.
+Files were loaded using the read.table command. The paramater stringsAsFactors was set to FALSE when loading the character based data for features and activities to facilitate later processing. Column names are declared when reading in the activity labels file to be used when merging the activities labels.
 
 
 ```{r}
 ## get training data        
 fileTrainX<-read.table("X_train.txt")
-if(verbose==TRUE){str(fileTrainX)}
 fileTrainY<-read.table("y_train.txt")
-if(verbose==TRUE){str(fileTrainY)}
 fileTrainS<-read.table("subject_train.txt")
-if(verbose==TRUE){str(fileTrainS)}
 
 ## get test data
 fileTestX<-read.table("X_test.txt")
-if(verbose==TRUE){str(fileTestX)}
 fileTestY<-read.table("y_test.txt")
-if(verbose==TRUE){str(fileTestY)}
 fileTestS<-read.table("subject_test.txt")
-if(verbose==TRUE){str(fileTestS)}
 
 ##Get activities and features
-fileActivity<-read.table("activity_labels.txt", stringsAsFactors=FALSE)
-if(verbose==TRUE){str(fileActivity)}
+fileActivity<-read.table("activity_labels.txt", stringsAsFactors=FALSE, col.names=c("activityCode", "activityLabel"))
 fileFeatures<-read.table("features.txt", stringsAsFactors=FALSE)
-if(verbose==TRUE){str(fileFeatures)}
 ```
 
-You can also embed plots, for example:
+### Combining Datasets
 
-```{r fig.width=7, fig.height=6}
-plot(cars)
+This section completes the 1st function of the project:
+* 1. Merges the training and the test sets to create one data set.
+
+
+This step adds the activity column to both the test and training datasets, using the cbind function. 
+
+```{r}
+## add activity to test and train data
+fileTestXY<-cbind(fileTestX,fileTestY)
+fileTrainXY<-cbind(fileTrainX,fileTrainY)
 ```
 
+This step adds the subject column to both the test and training datasets, using the cbind function. 
+
+```{r}
+## add subject to test and train data
+fileTestXYS<-cbind(fileTestXY,fileTestS)
+fileTrainXYS<-cbind(fileTrainXY,fileTrainS)
+```
+
+This step combines the test and training datasets usinf rbind function.
+
+```{r}
+## ## merge test and train
+fileData<-rbind(fileTrainXYS,fileTestXYS)
+```
+
+
+### Transform Features and subset
+This section accomplishes the 2nd and 3rd functions of the project:
+* 2. Extracts only the measurements on the mean and standard deviation for each measurement. 
+* 3. Uses descriptive activity names to name the activities in the data set
+
+The step adds lables for the new columns in the data set to the features.
+
+```{r}
+ ## add activity and subject code to features
+fileFeatures<-rbind(fileFeatures, c(nrow(fileFeatures)+1,"activityCode"))
+fileFeatures<-rbind(fileFeatures, c(nrow(fileFeatures)+1,"subjectCode"))
+```
+
+This step sets the names of the columns equal to the feature names
+
+```{r}
+## set column names equal to 2nd column of the fileFeatures data frame
+colnames(fileData) <-fileFeatures[[2]]
+```
+
+This step subsets the data, taking only those columns with the mean() and std() in their names. There were other features that contained Mean in their name but were not calculated averages and not included in the output. It also includes the new columns that have Code in their name.
+
+```{r}
+##subset dataset for features with mean or stdev or code in name
+selectFeature<-(grepl("mean()",fileFeatures$V2))|(grepl("std()",fileFeatures$V2)|(grepl("Code",fileFeatures$V2)))
+fileData<-subset(fileData, select=selectFeature)
+
+```
+
+This step cleans up column names by removing the parenthesis. Because the column names consisted of concatenated words we kept the camel case of the original data set as opposed to converting the names to alllower case. A personal preference that I think results in more readable columnnames.
+
+
+```{r}
+## remove parenthesis in colunnames
+fileDataCols<-colnames(fileData)
+##escape a metacharacter in a regular expression, you precede it with a backslash.
+##If your expression is in double quotes, then the backslash itself must be escaped by using double backslashes.
+fileDataCols<-gsub(pattern="\\(|\\)", x=fileDataCols, replacement="")
+## Assign cleaned up names to columns
+colnames(fileData) <-fileDataCols
+```
+
+### Create new dataset
+This section accomplishes the 5th function of the project.
+* 5. Creates a second, independent tidy data set with the average of each variable for each activity and each subject. 
+* 4. Appropriately labels the data set with descriptive activity names.
+
+Th accomploish this goal the library reshape2 was loaded The functions metl and cast were used to reshape the data and aggregate over the activity and subject codes. The merge function was used to Appropriately labels the data set with descriptive activity names. Merge was performed by joining on  activity code which is common column to both datasets.
+
+The resulting dataset has a row for each combination of activity and subject in the data. This means that this data frame will have 180 rows (30 subjects * 6 activities). It has 82 columns. 3 were added, activityCode, subjectCode and activityLabel. 79 came from the test and train datasets, those with mean() and std(), in their name.
+
+
+```{r}
+## load library
+library(reshape2)
+##First melt or unpivot the dataset
+## since we want to aggregate by subjectCode and activityCode they are the ids, default allother columns are variables
+fileDataMelt<-melt(fileData, id=c("subjectCode", "activityCode"))
+        
+## Now cast or pivot the columns and get the mean 
+fileDataCast<-dcast(fileDataMelt,activityCode+subjectCode~variable,mean)
+        
+## mere or join the dataset to get activity labels
+## join by activity code which is common column to both datasets
+fileDataMerge<-merge(fileDataCast, fileActivity, by="activityCode")
+
+## write data to tab delimited text file
+write.table(fileDataMerge, "tidydata.txt", sep="\t")
+
+```
+
+
+### Data Exploration
+
+The tidydata consists of 180 observations of 82 variables. A case is an observation of a subject and specific activites.
+
+```{r}
+dim(fileDataMerge)
+```
+
+The structure of the tidydatset is detailed below.
+
+```{r}
+str(fileDataMerge)
+```
+
+
+Example rows from the tidydatset are shown below
+
+```{r}
+head(fileDataMerge)
+```
+
+There are 30 unique subjects.
+```{r}
+unique(fileDataMerge$subjectCode)
+```
+
+There are 6 unique activities.
+```{r}
+unique(fileDataMerge$activityLabel)
+```
+
+There are 79 numeric factors. This is a subset of the original 561 varibales. These varibales were chosen as per instrunctions, to extracts only the measurements on the mean and standard deviation for each measurement. Summary satistics are below.
+
+```{r}
+summary(subset(fileDataMerge, select =3:81))
+```
+
+Boxplots of the variables are below.
+
+```{r}
+par(mfrow=c(10,8), mar=c(1,1,1,1))
+for (i in 3:81){boxplot(fileDataMerge[[i]])}
+
+```
+
+### Result
+
+A tidy dataset, suitable for further anlayis has been created.
